@@ -43,7 +43,6 @@ const TeamForm = () => {
   }
 
   useEffect(() => {
-    console.log("location.state>> ", location.state)
     if (location.state) {
       setFormData({
           id: location.state.id,
@@ -56,7 +55,15 @@ const TeamForm = () => {
       });
       setMode('edit');
     } else {
-      setFormData({ name: '', description: '' });
+      setFormData({
+          id: uuidv4(),
+          teamName: '',
+          teamDescription: '',
+          memberName: "",
+          gender: null,
+          dob: "",
+          contact: ''
+      });
       setMode('add');
     }
   }, [location.state]);
