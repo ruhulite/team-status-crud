@@ -1,110 +1,133 @@
-import React, { useState, useEffect, useId  } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from "../service/api.js";
 import {toast, ToastContainer} from "react-toastify";
 import { v4 as uuidv4 } from 'uuid';
-import Select from "react-select";
 import MemberForm from "./MemberForm.jsx";
 
 const TeamForm = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState(
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState(
     {
                 id: uuidv4(),
                 teamName: '',
                 teamDescription: '',
                 memberName: "",
-                gender: null,
+                gender: '',
                 dob: "",
                 contact: ''
             }
-  );
+    );
 
-  const genderOptions = [
+    const genderOptions = [
       { value: 'male', label: 'Male' },
       { value: 'female', label: 'Female' },
-  ]
+    ]
+
+    const [mode, setMode] = useState('add');
+    const [memberData, setMemberData] = useState([]);
+
+    const copyAllMember = useRef([])
+    const memberIndex = useRef([])
+    const [isMultyEdit, setIsMultyEdit] = useState(false)
 
 
-  const [mode, setMode] = useState('add');
-  const [memberData, setMemberData] = useState([]);
+    const handleAddMember = () => {
+        setMemberData([...memberData, {
+            id: uuidv4(),
+            memberName: "",
+            gender: "",
+            dob: "",
+            contact: ''
+        }])
+    }
 
+    const onChangeInput = (event, index) => {
+        const { name, value } = event.target;
+        const newFields = [...memberData];
+        newFields[index][name] = value;
+        setMemberData(newFields);
+    };
 
-  const handleAddMember = () => {
-    memberData.push({
-        id: uuidv4(),
-        memberName: "",
-        gender: null,
-        dob: "",
-        contact: ''
-    })
-    setMemberData([...memberData])
-  }
-
-  useEffect(() => {
+    useEffect(() => {
     if (location.state) {
-      setFormData({
-          id: location.state.id,
-          teamName: location.state.teamName,
-          teamDescription: location.state.teamDescription,
-          memberName: location.state.members[0].memberName,
-          gender: location.state.members[0].gender.label,
-          dob: location.state.members[0].dob,
-          contact: location.state.members[0].contact
-      });
-      setMode('edit');
+        setMode('edit');
+
+        const team = location.state.team;
+
+        if (location.state.id) {
+            setIsMultyEdit(true);
+            const id = location.state.id;
+
+            copyAllMember.current = team.members;
+            memberIndex.current = team.members.findIndex(obj => obj.id === id);
+
+            setFormData({
+                id: team.id,
+                teamName: team.teamName,
+                teamDescription: team.teamDescription,
+                memberName: team.members[memberIndex.current].memberName,
+                gender: team.members[memberIndex.current].gender,
+                dob: team.members[memberIndex.current].dob,
+                contact: team.members[memberIndex.current].contact
+            });
+
+
+        } else {
+            setFormData({
+                id: team.id,
+                teamName: team.teamName,
+                teamDescription: team.teamDescription,
+                memberName: team.members[0].memberName,
+                gender: team.members[0].gender,
+                dob: team.members[0].dob,
+                contact: team.members[0].contact
+            });
+        }
+
     } else {
+        setMode('add');
       setFormData({
           id: uuidv4(),
           teamName: '',
           teamDescription: '',
           memberName: "",
-          gender: null,
+          gender: '',
           dob: "",
           contact: ''
       });
-      setMode('add');
+
     }
-  }, [location.state]);
 
+    }, [location.state]);
 
-  // const handleChange = (e) => {
-  //   setFormData({ ...formData, [e.target.name]: e.target.value });
-  // };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-
-  // const handleMamberNameChange = (id, newValue) => {
-  //   setMemberData(prevFields =>
-  //     prevFields.map(field =>
-  //       field.id === id ? { ...field, value: newValue } : field
-  //     )
-  //   );
-  //
-  //   console.log("setMemberData>>> ", memberData)
-  // }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-      const userData = {
+        const userData = {
           id: mode === 'add' ? uuidv4() : location.state.id,
           teamName: formData.teamName,
           teamDescription: formData.teamDescription,
-          approvedByManager: mode === 'add' ? 0 : location.state.approvedByManager,
-          approvedByDirector: mode === 'add' ? 0 : location.state.approvedByDirector,
+          approvedByManager: mode === 'add' ? 0 : location.state.team.approvedByManager,
+          approvedByDirector: mode === 'add' ? 0 : location.state.team.approvedByDirector,
           members: [
               {
-                  id: mode === 'add' ? uuidv4() : location.state.members[0].id,
+                  id: mode === 'add' ? uuidv4() : isMultyEdit ? location.state.team.members[memberIndex.current].id : location.state.team.members[0].id,
                   memberName: formData.memberName,
                   gender: formData.gender,
                   dob: formData.dob,
                   contact: formData.contact,
               }
           ]
-      }
+        }
 
-    if (mode === 'add') {
+        if (mode === 'add') {
+
+        if (memberData.length > 0) {
+            userData.members.push(...memberData)
+        }
+
         try {
           await api.post('/teams', userData).then(() => {
               toast.success('Team created successfully');
@@ -112,20 +135,41 @@ const TeamForm = () => {
         } catch(error) {
             toast.error(`Error - ${error}`);
         }
-    } else {
-        try {
-            await api.put(`/teams/${location.state.id}`, userData).then(() => {
-                toast.success('Team updated successfully');
-            })
-        } catch(error) {
-            toast.error(`Error - ${error}`);
+        } else {
+
+        if (isMultyEdit) {
+
+            const editedMember = userData.members[0];
+            const updatedMembersArray = copyAllMember.current.map(obj => {
+                if (obj.id === editedMember.id) {
+                    return editedMember;
+                }
+                return obj;
+            });
+
+            userData.members = updatedMembersArray
+
+            try {
+                await api.put(`/teams/${location.state.team.id}`, userData).then(() => {
+                    toast.success('Team updated successfully');
+                })
+            } catch(error) {
+                toast.error(`Error - ${error}`);
+            }
+
+        } else {
+            try {
+                await api.put(`/teams/${location.state.id}`, userData).then(() => {
+                    toast.success('Team updated successfully');
+                })
+            } catch(error) {
+                toast.error(`Error - ${error}`);
+            }
         }
-    }
-    navigate('/');
-  };
 
-
-    const [selectedDate, setSelectedDate] = useState('');
+        }
+        navigate('/', { replace: true, state: null });
+    };
 
   return <form
             className="bg-white rounded-lg shadow-sm width-full max-auto pb-6 text-black"
@@ -188,13 +232,18 @@ const TeamForm = () => {
                             />
                         </td>
                         <td className="px-2 py-3">
-                            <Select
-                                className="w-[110px] h-[34px] text-xs"
-                                options={genderOptions}
+                            <select
+                                name="gender"
+                                className="w-full p-2 border border-gray-300 rounded text-xs"
                                 value={formData.gender}
-                                onChange={(e) => setFormData({...formData, gender: e})}
+                                onChange={(e) => setFormData({...formData, gender: e.target.value})}
                                 required
-                            />
+                            >
+                                <option value="">Select...</option>
+                                {genderOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
                         </td>
                         <td className="px-2 py-3">
                             <input
@@ -218,18 +267,20 @@ const TeamForm = () => {
                             />
                         </td>
                     </tr>
-                    <MemberForm memberData={memberData} setMemberData={setMemberData} />
+                    <MemberForm memberData={memberData} onChangeInput={onChangeInput} />
                     </tbody>
                   </table>
-                  <div className="py-12 px-2">
-                      <button
-                          type="button"
-                          className="rounded-md bg-sky-500/100 px-6 py-3 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none"
-                          onClick={handleAddMember}
-                      >
-                          Add New Member
-                      </button>
-                  </div>
+                    {mode === 'add' && (
+                        <div className="py-12 px-2">
+                            <button
+                                type="button"
+                                className="rounded-md bg-sky-500/100 px-5 py-2 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
+                                onClick={handleAddMember}
+                            >
+                                Add New Member
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="flex justify-center items-center">
                     <button
@@ -241,7 +292,7 @@ const TeamForm = () => {
                     <button
                         type="button"
                         className="rounded-md bg-red-500 px-6 py-3 ml-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/', { replace: true, state: null })}
                     >Exit</button>
                 </div>
             </div>

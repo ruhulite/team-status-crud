@@ -1,7 +1,6 @@
 import React from 'react';
-import Select from "react-select";
 
-const MemberForm = ({memberData, setMemberData}) => {
+const MemberForm = ({memberData, onChangeInput}) => {
 
     const genderOptions = [
         { value: 'male', label: 'Male' },
@@ -18,28 +17,35 @@ const MemberForm = ({memberData, setMemberData}) => {
                     <input
                         type="text"
                         className="w-full p-2 border border-gray-300 rounded text-xs"
+                        name="memberName"
                         value={member.memberName}
-                        onChange={(e) => setMemberData({...memberData, memberName: e.target.value})}
+                        onChange={(e) => onChangeInput(e, index)}
                         placeholder="Member Name"
                         required
                     />
                 </td>
                 <td className="px-2 py-3">
-                    <Select
-                        className="w-[110px] h-[34px] text-xs"
-                        options={genderOptions}
+                    <select
+                        name="gender"
+                        className="w-full p-2 border border-gray-300 rounded text-xs"
                         value={member.gender}
-                        onChange={(e) => setMemberData({...memberData, gender: e})}
+                        onChange={(e) => onChangeInput(e, index)}
                         required
-                    />
+                    >
+                        <option value="">Select...</option>
+                        {genderOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                    </select>
                 </td>
                 <td className="px-2 py-3">
                     <input
                         type="date"
                         id="dateInput"
                         className="w-full p-2 border border-gray-300 rounded text-xs"
+                        name="dob"
                         value={member.dob}
-                        onChange={(e) => setMemberData({...memberData, dob: e.target.value})}
+                        onChange={(e) => onChangeInput(e, index)}
                         required
                     />
                 </td>
@@ -47,10 +53,10 @@ const MemberForm = ({memberData, setMemberData}) => {
                     <input
                         id="contact"
                         className="w-full p-2 border border-gray-300 rounded text-xs"
-                        name="age"
+                        name="contact"
                         type="number"
                         value={member.contact}
-                        onChange={(e) => setMemberData({...memberData, contact: e.target.value})}
+                        onChange={(e) => onChangeInput(e, index)}
                         required
                     />
                 </td>

@@ -12,26 +12,35 @@ import api from "../service/api.js";
 const HomePage = () => {
   const navigate = useNavigate();
   const [teamData, setTeamData] = useState([]);
-  const [toggleChild, setToggleChild] = useState(null);
   const [checkedTeams, setCheckedTeams] = useState([]);
   const [isShowBulkDeleteBtn, setIsShowBulkDeleteBtn] = useState(false);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   const teamDataApi = useRef([]);
+  const dragItem = useRef()
+  const dragOverItem = useRef()
 
   useEffect( () => {
+    let isMounted = true;
     const fetchTeams = async () => {
       try {
         const response = await api.get('/teams');
-        setTeamData(response.data)
-        teamDataApi.current = response.data;
-        toast.success('Request process successfully.');
+        if (isMounted) {
+          setTeamData(response.data)
+          teamDataApi.current = response.data;
+          toast.success('Request process successfully.');
+        }
       } catch (error) {
         toast.error(`Error - ${error}`);
       }
     };
 
     fetchTeams();
+
+    return () => {
+      isMounted = false;
+    }
+
   }, [])
 
 
@@ -75,14 +84,14 @@ const HomePage = () => {
 
     try {
       await api.delete(`/teams/${team.id}`).then(() => {
-        toast.error("Team Deleted successfully")
+        toast.success("Team Deleted successfully")
       })
     } catch(error) {
       toast.error(`Error - ${error}`);
     }
   };
 
-  const handleDeleteMember = (team, member) => {
+  const handleDeleteMember = async (team, member) => {
     const deleteMember = teamData.map((item) => {
       if (item.id === team.id) {
         return {
@@ -93,7 +102,18 @@ const HomePage = () => {
       return item;
     });
     setTeamData(deleteMember);
-    toast.error("Member Deleted successfully")
+
+    try {
+      const deletedTeamMember = team.members.filter((item2) => item2.id !== member.id)
+      team.members = deletedTeamMember;
+
+      await api.put(`/teams/${team.id}`, team).then(() => {
+        toast.success("Member Deleted successfully")
+      })
+    } catch(error) {
+      toast.error(`Error - ${error}`);
+    }
+
   };
 
   const handleSearchTeam = (text) => {
@@ -108,17 +128,17 @@ const HomePage = () => {
   }
 
   const handleTeamEdit = (team) => {
-    navigate('/team-form', { state: team });
+    navigate('/team-form', { state: {id: '', team} });
   };
 
+  const handleTeamMemberEdit = (id, team) => {
+    navigate('/team-form', { state: {id, team} });
+  }
+
+  const [activeIndex, setActiveIndex] = useState(null);
+
   const handleToggle = (index) => {
-    if (toggleChild === null) {
-      setToggleChild(index)
-    } else if (toggleChild === index) {
-      setToggleChild(null)
-    } else {
-      // setToggleChild(null)
-    }
+    setActiveIndex(activeIndex === index ? null : index);
   }
 
 
@@ -141,8 +161,11 @@ const HomePage = () => {
 
   const handleDeleteAllTeam = async () => {
     if (isBulkDelete) {
-      setTeamData([]);
 
+      //TODO: while bulg delete api call should be -
+      //TODO: await api.delete(`/teams/all`)
+
+      // this for showing example
       try {
         for (let i= 0; i < teamData.length; i++) {
           await api.delete(`/teams/${teamData[i].id}`).catch(error => toast.error(`Error - ${error}`));
@@ -151,6 +174,8 @@ const HomePage = () => {
       } catch(error) {
         toast.error(`Error - ${error}`);
       }
+
+      setTeamData([]);
 
     } else {
       const filterDelete = teamData.filter(({ id: teamId }) => !checkedTeams.some(id => id === teamId));
@@ -179,9 +204,6 @@ const HomePage = () => {
     }
   }
 
-  const dragItem = useRef()
-  const dragOverItem = useRef()
-
   const handleDragStart = (e, index) => {
     dragItem.current = index
   }
@@ -201,33 +223,8 @@ const HomePage = () => {
 
     try {
 
-
-      // const formData = new FormData();
-      // formData.append(copyTeamsData)
-      //
-      // fetch('http://localhost:3000/teams', {
-      //   method: 'POST',
-      //   body: formData
-      // })
-      //     .then(response => response.json())
-      //     .then(data => toast.success("Team Updated Successfully"))
-      //     .catch(error => toast.error(`Error - ${error}`));
-
-
-      // await api.post(`/teams`, copyTeamsData).then(() => {
-      //   toast.success("Team Updated Successfully")
-      // })
-
-      // for (const team of copyTeamsData) {
-      //   await fetch(`http://localhost:3000/teams/${team.id}`, {
-      //     method: 'PUT', // Or 'PUT' if you want to replace the entire resource
-      //     headers: {
-      //       'Content-Type': 'application/json',
-      //     },
-      //     body: JSON.stringify({ author: newAuthor }), // Update the 'author' field
-      //   });
-      // }
-      // console.log('All posts updated successfully.');
+      //TODO: for rearranging the data the API call should be -
+      //TODO: await api.post(`/teams`, updatedData)
 
 
     } catch(error) {
@@ -277,7 +274,7 @@ const HomePage = () => {
         <tbody>
         {teamData.map((team, index) => (
             <tr
-                className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
+                className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 capitalize"
                 key={index}
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
@@ -303,10 +300,10 @@ const HomePage = () => {
                       className="cursor-pointer relative"
                       onClick={() => handleToggle(index)}
                   >
-                    <span className="arrow-down absolute right-[0px] top-[-4px]" />
+                    <span className={`arrow-down absolute right-[0px] top-[-4px] ${activeIndex === index ? 'active' : ''}`} />
                   </div>
                 </div>
-                {toggleChild === index && (
+                {activeIndex === index && (
                     <div className="relative overflow-x-auto">
                       <table className="w-full text-sm text-left rtl:text-right text-gray-800 dark:text-gray-400">
                         <tbody>
@@ -315,16 +312,16 @@ const HomePage = () => {
                                 className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
                                 key={index}
                             >
-                              <td className="px-2 py-3">{member.memberName}</td>
-                              <td className="px-2 py-3">
+                              <td style={{ width: '300px' }} className="px-2 py-3">{member.memberName}</td>
+                              <td className="px-2 py-3 text-[9px] font-bold">
                                 <span
-                                  className="text-blue-500 text-xs cursor-pointer uppercase"
-                                  onClick={() => handleTeamEdit(team)}
+                                  className="text-blue-500 cursor-pointer uppercase"
+                                  onClick={() => handleTeamMemberEdit(member.id, team)}
                                 >
                                   Edit
                                 </span> |&nbsp;
                                 <span
-                                  className="text-blue-500 text-xs cursor-pointer uppercase"
+                                  className="text-blue-500 cursor-pointer uppercase"
                                   onClick={() => handleDeleteMember(team, member)}
                                 >
                                   Delete
@@ -337,43 +334,42 @@ const HomePage = () => {
                       </table>
                     </div>
                 )}
-
               </td>
               <td style={{ verticalAlign: 'top' }} className="px-2 py-3">
                 <div className="flex items-center justify-center w-full">
                   {(team.approvedByManager === 0 || team.approvedByManager > 2) && (
-                      <GrayIcon team={team} getTeamStatus={handleStatusClickByManager} />
+                      <GrayIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
                   )}
                   {team.approvedByManager === 1 && (
-                      <ApprovedCheckmarkIcon team={team} getTeamStatus={handleStatusClickByManager} />
+                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
                   )}
                   {team.approvedByManager === 2 && (
-                      <CrossIcon team={team} getTeamStatus={handleStatusClickByManager} />
+                      <CrossIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
                   )}
                 </div>
               </td>
               <td style={{ verticalAlign: 'top' }} className="px-2 py-3">
                 <div className="flex items-center justify-center w-full">
                   {(team.approvedByDirector === 0 || team.approvedByDirector > 2) && (
-                      <GrayIcon team={team} getTeamStatus={handleStatusClickByDirector} />
+                      <GrayIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
                   )}
                   {team.approvedByDirector === 1 && (
-                      <ApprovedCheckmarkIcon team={team} getTeamStatus={handleStatusClickByDirector} />
+                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
                   )}
                   {team.approvedByDirector === 2 && (
-                      <CrossIcon team={team} getTeamStatus={handleStatusClickByDirector} />
+                      <CrossIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
                   )}
                 </div>
               </td>
-              <td style={{ width: '91px', verticalAlign: 'top' }} className="px-2 py-3">
+              <td style={{ width: '91px', verticalAlign: 'top' }} className="px-2 py-3 text-xs">
                   <span
-                      className="text-blue-500 text-xs cursor-pointer uppercase"
+                      className="text-blue-500 cursor-pointer uppercase"
                       onClick={() => handleTeamEdit(team)}
                   >
                     Edit
                   </span> |&nbsp;
                   <span
-                      className="text-blue-500 text-xs cursor-pointer uppercase"
+                      className="text-blue-500 cursor-pointer uppercase"
                       onClick={() => handleDeleteTeam(team)}
                   >
                     Delete
