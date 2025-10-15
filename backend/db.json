@@ -1,0 +1,80 @@
+{
+  "teams": [
+    {
+      "id": "41d6",
+      "teamName": "ertert",
+      "teamDescription": "retrwtw",
+      "approvedByManager": 1,
+      "approvedByDirector": 0,
+      "members": [
+        {
+          "id": "95e0c7f8-a0d5-40e5-91c2-7e956312691e",
+          "memberName": "ertert",
+          "gender": {
+            "value": "male",
+            "label": "Male"
+          },
+          "dob": "2025-10-07",
+          "contact": "67474"
+        }
+      ]
+    },
+    {
+      "id": "af8e",
+      "teamName": "ertert 1",
+      "teamDescription": "retrwtw descriptopn",
+      "approvedByManager": 0,
+      "approvedByDirector": 1,
+      "members": [
+        {
+          "id": "6edc12d3-e8f6-45ab-89b3-a962f8a6ec12",
+          "memberName": "member 1",
+          "gender": {
+            "value": "female",
+            "label": "Female"
+          },
+          "dob": "2025-10-02",
+          "contact": "6747412345"
+        }
+      ]
+    },
+    {
+      "id": "939e",
+      "teamName": "ertert",
+      "teamDescription": "retrwtw",
+      "approvedByManager": 1,
+      "approvedByDirector": 0,
+      "members": [
+        {
+          "id": "aa390f72-12bd-439c-be08-abf7f4bf7689",
+          "memberName": "ertert",
+          "gender": {
+            "value": "male",
+            "label": "Male"
+          },
+          "dob": "2025-10-07",
+          "contact": "67474"
+        }
+      ]
+    },
+    {
+      "id": "4317",
+      "teamName": "ertert last updated",
+      "teamDescription": "retrwtw last",
+      "approvedByManager": 0,
+      "approvedByDirector": 2,
+      "members": [
+        {
+          "id": "1e166bdb-652a-4c27-a206-bdb7e6c14290",
+          "memberName": "ertert last",
+          "gender": {
+            "value": "female",
+            "label": "Female"
+          },
+          "dob": "2025-10-02",
+          "contact": "6747434345435"
+        }
+      ]
+    }
+  ]
+}

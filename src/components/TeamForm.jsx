@@ -1,57 +1,65 @@
 import React, { useState, useEffect, useId  } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from "../service/api.js";
+import {toast, ToastContainer} from "react-toastify";
+import { v4 as uuidv4 } from 'uuid';
+import Select from "react-select";
+import MemberForm from "./MemberForm.jsx";
 
 const TeamForm = () => {
-
   const location = useLocation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(
     {
-                id: 1,
+                id: uuidv4(),
                 teamName: '',
                 teamDescription: '',
-                approvedByManager: 0,
-                approvedByDirector: 0,
-                members: [
-                    {
-                        id: 0,
-                        memberName: "",
-                        gender: "",
-                        dob: "",
-                        contact: ''
-                    }
-                ]
+                memberName: "",
+                gender: null,
+                dob: "",
+                contact: ''
             }
   );
+
+  const genderOptions = [
+      { value: 'male', label: 'Male' },
+      { value: 'female', label: 'Female' },
+  ]
+
+
   const [mode, setMode] = useState('add');
-  const [count, setCount] = useState(1);
   const [memberData, setMemberData] = useState([]);
 
 
   const handleAddMember = () => {
-    setCount(count + 1)
-    setMemberData([...memberData, {
-              id: count,
-              memberName: "",
-              gender: "",
-              dob: "",
-              contact: null
-            }])
-
-    console.log('memberData>> ', memberData)
+    memberData.push({
+        id: uuidv4(),
+        memberName: "",
+        gender: null,
+        dob: "",
+        contact: ''
+    })
+    setMemberData([...memberData])
   }
 
-
-  // useEffect(() => {
-  //   console.log("location.state>> ", location.state)
-  //   if (location.state && location.state.item) {
-  //     setFormData(location.state.item);
-  //     setMode('edit');
-  //   } else {
-  //     setFormData({ name: '', description: '' });
-  //     setMode('add');
-  //   }
-  // }, [location.state]);
+  useEffect(() => {
+    console.log("location.state>> ", location.state)
+    if (location.state) {
+      setFormData({
+          id: location.state.id,
+          teamName: location.state.teamName,
+          teamDescription: location.state.teamDescription,
+          memberName: location.state.members[0].memberName,
+          gender: location.state.members[0].gender.label,
+          dob: location.state.members[0].dob,
+          contact: location.state.members[0].contact
+      });
+      setMode('edit');
+    } else {
+      setFormData({ name: '', description: '' });
+      setMode('add');
+    }
+  }, [location.state]);
 
 
   // const handleChange = (e) => {
@@ -69,12 +77,42 @@ const TeamForm = () => {
   //   console.log("setMemberData>>> ", memberData)
   // }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+      const userData = {
+          id: mode === 'add' ? uuidv4() : location.state.id,
+          teamName: formData.teamName,
+          teamDescription: formData.teamDescription,
+          approvedByManager: mode === 'add' ? 0 : location.state.approvedByManager,
+          approvedByDirector: mode === 'add' ? 0 : location.state.approvedByDirector,
+          members: [
+              {
+                  id: mode === 'add' ? uuidv4() : location.state.members[0].id,
+                  memberName: formData.memberName,
+                  gender: formData.gender,
+                  dob: formData.dob,
+                  contact: formData.contact,
+              }
+          ]
+      }
+
     if (mode === 'add') {
-      console.log('Adding item:', formData);
+        try {
+          await api.post('/teams', userData).then(() => {
+              toast.success('Team created successfully');
+          })
+        } catch(error) {
+            toast.error(`Error - ${error}`);
+        }
     } else {
-      console.log('Updating item:', formData);
+        try {
+            await api.put(`/teams/${location.state.id}`, userData).then(() => {
+                toast.success('Team updated successfully');
+            })
+        } catch(error) {
+            toast.error(`Error - ${error}`);
+        }
     }
     navigate('/');
   };
@@ -86,6 +124,7 @@ const TeamForm = () => {
             className="bg-white rounded-lg shadow-sm width-full max-auto pb-6 text-black"
             onSubmit={handleSubmit}
         >
+            <ToastContainer />
             <h2 className="bg-slate-800 text-white text-lg flex justify-center items-center py-6 mb-6 font-bold">Team Details</h2>
             <div className="px-5">
                 <div className="mb-4">
@@ -93,7 +132,7 @@ const TeamForm = () => {
                         Team Name
                         <input
                             type="text"
-                            className="w-full font-normal p-2 border rounded mt-2"
+                            className="w-full font-normal p-2 border border-gray-300 rounded mt-2"
                             value={formData.teamName}
                             onChange={(e) => setFormData({...formData, teamName: e.target.value})}
                             placeholder="Team Name"
@@ -105,7 +144,7 @@ const TeamForm = () => {
                     <label className="font-bold text-sm">
                         Team Description
                         <textarea
-                            className="w-full font-normal p-2 border rounded mt-2"
+                            className="w-full font-normal p-2 border border-gray-300 rounded mt-2"
                             value={formData.teamDescription}
                             onChange={(e) => setFormData({...formData, teamDescription: e.target.value})}
                             name="teamDescription"
@@ -128,104 +167,51 @@ const TeamForm = () => {
                           </tr>
                     </thead>
                     <tbody>
-                      {formData.members?.map((member) => (
-                        <tr
-                            className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
-                            key={member.id}
-                        >
-                            <td className="px-2 py-3">
-                              <input
+                    <tr
+                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
+                    >
+                        <td className="px-2 py-3">
+                            <input
                                 type="text"
-                                className="w-full p-2 border rounded mt-2"
-                                value={member.memberName}
+                                className="w-full p-2 border border-gray-300 rounded text-xs"
+                                value={formData.memberName}
                                 onChange={(e) => setFormData({...formData, memberName: e.target.value})}
                                 placeholder="Member Name"
                                 required
-                              />
-                            </td>
-                            <td className="px-2 py-3">
-                                <select
-                                    name="selectedFruit"
-                                    className="w-full p-2 border rounded mt-2"
-                                >
-                                    <option value="apple">Male</option>
-                                    <option value="banana">Female</option>
-                                </select>
-                            </td>
-                            <td className="px-2 py-3">
-                                <input
-                                    type="date"
-                                    id="dateInput"
-                                    className="w-full p-2 border rounded mt-2"
-                                    value={selectedDate}
-                                    onChange={(e) => setSelectedDate(e.target.value)}
-                                    required
-                                />
-                            </td>
-                            <td className="px-2 py-3">
-                                <input
-                                    id="contact"
-                                    className="w-full p-2 border rounded mt-2"
-                                    name="age"
-                                    type="number"
-                                />
-                              {/*<input*/}
-                              {/*  type="number"*/}
-                              {/*  className="w-full p-2 border rounded mt-2"*/}
-                              {/*  value={member.contact}*/}
-                              {/*  onChange={(e) => setFormData({...formData, contact: e.target.value})}*/}
-                              {/*  placeholder="Contact no"*/}
-                              {/*  required*/}
-                              {/*/>*/}
-                            </td>
-                          </tr>
-                      ))}
-
-                      {/*{memberData.map((member) => (*/}
-                      {/*  <tr*/}
-                      {/*      className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"*/}
-                      {/*      key={member.id}*/}
-                      {/*  >*/}
-                      {/*      <td className="px-2 py-3">*/}
-                      {/*        <input*/}
-                      {/*          type="text"*/}
-                      {/*          className="w-full p-2 border rounded mt-2"*/}
-                      {/*          value={member.memberName}*/}
-                      {/*          onChange={(e) => setFormData({...formData, memberName: e.target.value})}*/}
-                      {/*          placeholder="Member Name"*/}
-                      {/*          required*/}
-                      {/*        />*/}
-                      {/*      </td>*/}
-                      {/*      <td className="px-2 py-3">*/}
-                      {/*        <select*/}
-                      {/*          value={member.gender}*/}
-                      {/*          onChange={(e) => setFormData({...formData, gender: e.target.value})}*/}
-                      {/*        >*/}
-                      {/*          <option value="male">Male</option>*/}
-                      {/*          <option value="female">Female</option>*/}
-                      {/*        </select></td>*/}
-                      {/*      <td className="px-2 py-3">*/}
-                      {/*        <input*/}
-                      {/*          type="date"*/}
-                      {/*          className="w-full p-2 border rounded mt-2"*/}
-                      {/*          value={member.dob}*/}
-                      {/*          onChange={(e) => setFormData({...formData, dob: e.target.value})}*/}
-                      {/*          placeholder="Date of Birth"*/}
-                      {/*          required*/}
-                      {/*        />*/}
-                      {/*      </td>*/}
-                      {/*      <td className="px-2 py-3">*/}
-                      {/*        <input*/}
-                      {/*          type="number"*/}
-                      {/*          className="w-full p-2 border rounded mt-2"*/}
-                      {/*          value={member.contact}*/}
-                      {/*          onChange={(e) => setFormData({...formData, contact: e.target.value})}*/}
-                      {/*          placeholder="Contact no"*/}
-                      {/*          required*/}
-                      {/*        />*/}
-                      {/*      </td>*/}
-                      {/*  </tr>*/}
-                      {/*))}*/}
+                            />
+                        </td>
+                        <td className="px-2 py-3">
+                            <Select
+                                className="w-[110px] h-[34px] text-xs"
+                                options={genderOptions}
+                                value={formData.gender}
+                                onChange={(e) => setFormData({...formData, gender: e})}
+                                required
+                            />
+                        </td>
+                        <td className="px-2 py-3">
+                            <input
+                                type="date"
+                                id="dateInput"
+                                className="w-full p-2 border border-gray-300 rounded text-xs"
+                                value={formData.dob}
+                                onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                                required
+                            />
+                        </td>
+                        <td className="px-2 py-3">
+                            <input
+                                id="contact"
+                                className="w-full p-2 border border-gray-300 rounded text-xs"
+                                name="age"
+                                type="number"
+                                value={formData.contact}
+                                onChange={(e) => setFormData({...formData, contact: e.target.value})}
+                                required
+                            />
+                        </td>
+                    </tr>
+                    <MemberForm memberData={memberData} setMemberData={setMemberData} />
                     </tbody>
                   </table>
                   <div className="py-12 px-2">
@@ -241,13 +227,13 @@ const TeamForm = () => {
                 <div className="flex justify-center items-center">
                     <button
                         type="submit"
-                        className="rounded-md bg-blue-500 px-6 py-3 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none"
+                        className="rounded-md bg-blue-500 px-6 py-3 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
                     >
                         Save
                     </button>
                     <button
                         type="button"
-                        className="rounded-md bg-red-500 px-6 py-3 ml-3 text-sm font-semibold text-white opacity-100 focus:outline-none"
+                        className="rounded-md bg-red-500 px-6 py-3 ml-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
                         onClick={() => navigate('/')}
                     >Exit</button>
                 </div>

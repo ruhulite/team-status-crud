@@ -11,3 +11,15 @@ body {
   margin: 0;
 }
 
+.css-13cymwt-control {
+  height: 34px;
+  min-height: 34px !important;
+}
+
+.arrow-down {
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid oklch(55.1% 0.027 264.364);
+}
