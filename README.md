@@ -22,6 +22,10 @@ The React Compiler is not enabled on this template because of its impact on dev 
 
 ## For Database
 - json-server
+- MongoDB
+
+## For Server
+- Express
 
 ## Project Instruction
 
