@@ -11,22 +11,22 @@ function App() {
     const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        api.interceptors.request.use(config => {
-            setIsLoading(true)
-            return config;
-        },
-        error => {
-        setIsLoading(false)
-            return Promise.reject(error);
-        })
-
-        api.interceptors.response.use(response => {
-            setIsLoading(false)
-            return response;
-        }, error => {
-            setIsLoading(false)
-            return Promise.reject(error);
-        })
+        // api.interceptors.request.use(config => {
+        //     setIsLoading(true)
+        //     return config;
+        // },
+        // error => {
+        // setIsLoading(false)
+        //     return Promise.reject(error);
+        // })
+        //
+        // api.interceptors.response.use(response => {
+        //     setIsLoading(false)
+        //     return response;
+        // }, error => {
+        //     setIsLoading(false)
+        //     return Promise.reject(error);
+        // })
     }, []);
 
     return <div className="mx-auto max-w-md bg-white md:max-w-2xl mt-15">

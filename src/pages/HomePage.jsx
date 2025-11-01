@@ -24,11 +24,10 @@ const HomePage = () => {
     let isMounted = true;
     const fetchTeams = async () => {
       try {
-        const response = await api.get('/teams');
+        const response = await api.list()
         if (isMounted) {
           setTeamData(response.data)
           teamDataApi.current = response.data;
-          //toast.success('Request process successfully.');
         }
       } catch (error) {
         toast.error(`Error - ${error}`);
@@ -44,16 +43,30 @@ const HomePage = () => {
   }, [])
 
 
-  const handleStatusClickByManager = async (team) => {
+  const setStatus = (status) => {
+    switch (status) {
+      case "not_been_approved":
+        return 'approved';
+      case "approved":
+        return 'not_approved';
+      case "not_approved":
+        return 'no_action_taken';
+      case 'no_action_taken':
+        return "not_been_approved"
+    }
+  }
+
+  const handleManagerStatusChange = async (team) => {
+
     setTeamData(prevState =>
         prevState.map(item =>
-            item.id === team.id ? { ...item, approvedByManager: team.approvedByManager + 1 } : item
+            item._id === team._id ? { ...item, approvedByManager: setStatus(team.approvedByManager) } : item
     ));
 
-    const filterTeam = teamData.find(item => item.id === team.id);
-    const updateTeam = {...filterTeam, approvedByManager: team.approvedByManager + 1};
+    const filterTeam = teamData.find(item => item._id === team._id);
+    const updateTeam = {...filterTeam, approvedByManager: setStatus(team.approvedByManager)};
     try {
-      await api.put(`/teams/${team.id}`, updateTeam).then(() => {
+      await api.patchManagerStatus(team._id, updateTeam).then(() => {
         toast.success("Team Status Saved")
       })
     } catch(error) {
@@ -61,16 +74,16 @@ const HomePage = () => {
     }
   }
 
-  const handleStatusClickByDirector = async (team) => {
+  const handleDirectorStatusChange = async (team) => {
     setTeamData(prevState =>
         prevState.map(item =>
-            item.id === team.id ? { ...item, approvedByDirector: team.approvedByDirector + 1 } : item
+            item._id === team._id ? { ...item, approvedByDirector: setStatus(team.approvedByDirector) } : item
     ));
 
-    const filterTeam = teamData.find(item => item.id === team.id);
-    const updateTeam = {...filterTeam, approvedByDirector: team.approvedByDirector + 1};
+    const filterTeam = teamData.find(item => item._id === team._id);
+    const updateTeam = {...filterTeam, approvedByDirector: setStatus(team.approvedByDirector) };
     try {
-      await api.put(`/teams/${team.id}`, updateTeam).then(() => {
+      await api.patchDirectorStatus(team._id, updateTeam).then(() => {
         toast.success("Team Status Saved")
       })
     } catch(error) {
@@ -79,11 +92,11 @@ const HomePage = () => {
   }
 
   const handleDeleteTeam = async (team) => {
-    const deleteTeam = teamData.filter((item) => item.id !== team.id);
+    const deleteTeam = teamData.filter((item) => item._id !== team._id);
     setTeamData(deleteTeam);
 
     try {
-      await api.delete(`/teams/${team.id}`).then(() => {
+      await api.delete(team._id).then(() => {
         toast.success("Team Deleted successfully")
       })
     } catch(error) {
@@ -93,10 +106,10 @@ const HomePage = () => {
 
   const handleDeleteMember = async (team, member) => {
     const deleteMember = teamData.map((item) => {
-      if (item.id === team.id) {
+      if (item._id === team._id) {
         return {
           ...item,
-          members: item.members.filter((item2) => item2.id !== member.id)
+          members: item.members.filter((item2) => item2._id !== member._id)
         };
       }
       return item;
@@ -104,10 +117,7 @@ const HomePage = () => {
     setTeamData(deleteMember);
 
     try {
-      const deletedTeamMember = team.members.filter((item2) => item2.id !== member.id)
-      team.members = deletedTeamMember;
-
-      await api.put(`/teams/${team.id}`, team).then(() => {
+      await api.deleteMember(team._id, member._id).then(() => {
         toast.success("Member Deleted successfully")
       })
     } catch(error) {
@@ -118,8 +128,8 @@ const HomePage = () => {
 
   const handleSearchTeam = (text) => {
     const filterSearch = teamDataApi.current.filter((team) => {
-      const searchMatchedTeamName = team.teamName.toLowerCase().includes(text.toLowerCase());
-      const searchMatchedMemberName = team.members.some((member) => member.memberName.toLowerCase().includes(text.toLowerCase()));
+      const searchMatchedTeamName = team.name.toLowerCase().includes(text.toLowerCase());
+      const searchMatchedMemberName = team.members.some((member) => member.name.toLowerCase().includes(text.toLowerCase()));
       return searchMatchedTeamName || searchMatchedMemberName;
     });
 
@@ -128,11 +138,11 @@ const HomePage = () => {
   }
 
   const handleTeamEdit = (team) => {
-    navigate('/team-form', { state: {id: '', team} });
+    navigate('/team-form', { state: {_id: '', team} });
   };
 
-  const handleTeamMemberEdit = (id, team) => {
-    navigate('/team-form', { state: {id, team} });
+  const handleTeamMemberEdit = (_id, team) => {
+    navigate('/team-form', { state: {_id, team} });
   }
 
   const [activeIndex, setActiveIndex] = useState(null);
@@ -159,41 +169,7 @@ const HomePage = () => {
     }
   }, [checkedTeams])
 
-  const handleDeleteAllTeam = async () => {
-    if (isBulkDelete) {
-
-      //TODO: while bulg delete api call should be -
-      //TODO: await api.delete(`/teams/all`)
-
-      // this for showing example
-      try {
-        for (let i= 0; i < teamData.length; i++) {
-          await api.delete(`/teams/${teamData[i].id}`).catch(error => toast.error(`Error - ${error}`));
-        }
-        toast.success("All Team Deleted successfully")
-      } catch(error) {
-        toast.error(`Error - ${error}`);
-      }
-
-      setTeamData([]);
-
-    } else {
-      const filterDelete = teamData.filter(({ id: teamId }) => !checkedTeams.some(id => id === teamId));
-      setTeamData(filterDelete);
-
-      try {
-        for (const id of checkedTeams) {
-          await api.delete(`/teams/${id}`).catch(error => toast.error(`Error - ${error}`));
-        }
-        toast.success("Teams Deleted successfully")
-      } catch(error) {
-        toast.error(`Error - ${error}`);
-      }
-    }
-
-  }
-
-  const handleDeleteAllBtnChange = (event) => {
+  const handleCheckAll = (event) => {
     const { checked } = event.target;
     if (checked) {
       setIsShowBulkDeleteBtn(true)
@@ -202,6 +178,18 @@ const HomePage = () => {
       setIsShowBulkDeleteBtn(false)
       setIsBulkDelete(false)
     }
+  }
+
+  const handleBulkDeleteTeam = async () => {
+    const filterDelete = teamData.filter(({ _id: teamId }) => !checkedTeams.some(_id => _id === teamId));
+    setTeamData(filterDelete);
+
+    try {
+      await api.bulkDelete(checkedTeams).then(() => toast.success("Team Deleted successfully"));
+    } catch(error) {
+      toast.error(`Error - ${error}`);
+    }
+
   }
 
   const handleDragStart = (e, index) => {
@@ -221,12 +209,13 @@ const HomePage = () => {
     dragOverItem.current = null
     setTeamData(copyTeamsData)
 
+    const ids = []
+    for (const {_id} of copyTeamsData) {
+      ids.push(_id)
+    }
+
     try {
-
-      //TODO: for rearranging the data the API call should be -
-      //TODO: await api.post(`/teams`, updatedData)
-
-
+      await api.reorder(ids).then(() => toast.success("Team re-ordered successfully"))
     } catch(error) {
       toast.error(`Error - ${error}`);
     }
@@ -255,7 +244,7 @@ const HomePage = () => {
             <th className="px-2 py-3">
               <input
                   type="checkbox"
-                  onChange={handleDeleteAllBtnChange}
+                  onChange={handleCheckAll}
               />
             </th>
             <th style={{ width: '400px' }} className="px-2 py-3">Team Name</th>
@@ -265,7 +254,7 @@ const HomePage = () => {
               {isShowBulkDeleteBtn && (
                   <span
                       className="text-blue-500 cursor-pointer uppercase"
-                      onClick={handleDeleteAllTeam}
+                      onClick={handleBulkDeleteTeam}
                   >Delete</span>
               )}
             </th>
@@ -285,16 +274,16 @@ const HomePage = () => {
               <td style={{ verticalAlign: 'top' }} className="px-2 py-3">
                   <input
                       type="checkbox"
-                      id={team.id}
-                      value={team.id}
-                      checked={isBulkDelete || checkedTeams.includes(team.id)}
+                      id={team._id}
+                      value={team._id}
+                      checked={isBulkDelete || checkedTeams.includes(team._id)}
                       onChange={handleCheckboxChange}
                   />
               </td>
               <td style={{ width: '400px', verticalAlign: 'top' }} className="px-2 py-3">
                 <div className="flex items-center justify-between">
                   <div>
-                     {team.teamName}
+                     {team.name}
                   </div>
                   <div
                       className="cursor-pointer relative"
@@ -312,11 +301,11 @@ const HomePage = () => {
                                 className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
                                 key={index}
                             >
-                              <td style={{ width: '300px' }} className="px-2 py-3">{member.memberName}</td>
+                              <td style={{ width: '300px' }} className="px-2 py-3">{member.name}</td>
                               <td className="px-2 py-3 text-[9px] font-bold">
                                 <span
                                   className="text-blue-500 cursor-pointer uppercase"
-                                  onClick={() => handleTeamMemberEdit(member.id, team)}
+                                  onClick={() => handleTeamMemberEdit(member._id, team)}
                                 >
                                   Edit
                                 </span> |&nbsp;
@@ -337,27 +326,27 @@ const HomePage = () => {
               </td>
               <td style={{ verticalAlign: 'top' }} className="px-2 py-3">
                 <div className="flex items-center justify-center w-full">
-                  {(team.approvedByManager === 0 || team.approvedByManager > 2) && (
-                      <GrayIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
+                  {(team.approvedByManager?.toLowerCase() === 'not_been_approved' || team.approvedByManager?.toLowerCase() === 'no_action_taken') && (
+                      <GrayIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleManagerStatusChange} />
                   )}
-                  {team.approvedByManager === 1 && (
-                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
+                  {team.approvedByManager?.toLowerCase() === 'approved' && (
+                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleManagerStatusChange} />
                   )}
-                  {team.approvedByManager === 2 && (
-                      <CrossIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleStatusClickByManager} />
+                  {team.approvedByManager?.toLowerCase() === 'not_approved' && (
+                      <CrossIcon team={team} approvedBy={team.approvedByManager} getTeamStatus={handleManagerStatusChange} />
                   )}
                 </div>
               </td>
               <td style={{ verticalAlign: 'top' }} className="px-2 py-3">
                 <div className="flex items-center justify-center w-full">
-                  {(team.approvedByDirector === 0 || team.approvedByDirector > 2) && (
-                      <GrayIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
+                  {(team.approvedByDirector?.toLowerCase() === 'not_been_approved' || team.approvedByDirector?.toLowerCase() === 'no_action_taken') && (
+                      <GrayIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleDirectorStatusChange} />
                   )}
-                  {team.approvedByDirector === 1 && (
-                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
+                  {team.approvedByDirector?.toLowerCase() === 'approved' && (
+                      <ApprovedCheckmarkIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleDirectorStatusChange} />
                   )}
-                  {team.approvedByDirector === 2 && (
-                      <CrossIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleStatusClickByDirector} />
+                  {team.approvedByDirector?.toLowerCase() === 'not_approved' && (
+                      <CrossIcon team={team} approvedBy={team.approvedByDirector} getTeamStatus={handleDirectorStatusChange} />
                   )}
                 </div>
               </td>

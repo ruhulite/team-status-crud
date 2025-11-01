@@ -17,8 +17,8 @@ const MemberForm = ({memberData, onChangeInput}) => {
                     <input
                         type="text"
                         className="w-full p-2 border border-gray-300 rounded text-xs"
-                        name="memberName"
-                        value={member.memberName}
+                        name="name"
+                        value={member.name}
                         onChange={(e) => onChangeInput(e, index)}
                         placeholder="Member Name"
                         required

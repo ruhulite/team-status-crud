@@ -10,13 +10,14 @@ const TeamForm = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState(
     {
-                id: uuidv4(),
-                teamName: '',
-                teamDescription: '',
-                memberName: "",
-                gender: '',
-                dob: "",
-                contact: ''
+                name: '',
+                description: '',
+                member: {
+                    name: "",
+                    gender: '',
+                    dob: "",
+                    contact: ''
+                }
             }
     );
 
@@ -31,12 +32,12 @@ const TeamForm = () => {
     const copyAllMember = useRef([])
     const memberIndex = useRef([])
     const [isMultyEdit, setIsMultyEdit] = useState(false)
+    const [updateTeamOnly, setUpdateTeamOnly] = useState(false)
 
 
     const handleAddMember = () => {
         setMemberData([...memberData, {
-            id: uuidv4(),
-            memberName: "",
+            name: "",
             gender: "",
             dob: "",
             contact: ''
@@ -56,47 +57,52 @@ const TeamForm = () => {
 
         const team = location.state.team;
 
-        if (location.state.id) {
+        if (location.state._id) {
+            setUpdateTeamOnly(false)
             setIsMultyEdit(true);
-            const id = location.state.id;
+            const id = location.state._id;
 
             copyAllMember.current = team.members;
-            memberIndex.current = team.members.findIndex(obj => obj.id === id);
+            memberIndex.current = team.members.findIndex(obj => obj._id === id);
 
             setFormData({
-                id: team.id,
-                teamName: team.teamName,
-                teamDescription: team.teamDescription,
-                memberName: team.members[memberIndex.current].memberName,
-                gender: team.members[memberIndex.current].gender,
-                dob: team.members[memberIndex.current].dob,
-                contact: team.members[memberIndex.current].contact
+                name: team.name,
+                description: team.description,
+                member: {
+                    name: team.members[memberIndex.current].name,
+                    gender: team.members[memberIndex.current].gender,
+                    dob: team.members[memberIndex.current].dob,
+                    contact: team.members[memberIndex.current].contact
+                }
             });
 
 
         } else {
+            setUpdateTeamOnly(true)
             setFormData({
-                id: team.id,
-                teamName: team.teamName,
-                teamDescription: team.teamDescription,
-                memberName: team.members[0].memberName,
-                gender: team.members[0].gender,
-                dob: team.members[0].dob,
-                contact: team.members[0].contact
+                name: team.name,
+                description: team.description,
+                member: {
+                    name: team.members[0].name,
+                    gender: team.members[0].gender,
+                    dob: team.members[0].dob,
+                    contact: team.members[0].contact
+                }
             });
         }
 
     } else {
         setMode('add');
-      setFormData({
-          id: uuidv4(),
-          teamName: '',
-          teamDescription: '',
-          memberName: "",
-          gender: '',
-          dob: "",
-          contact: ''
-      });
+        setFormData({
+          name: '',
+          description: '',
+          member: {
+              name: "",
+              gender: '',
+              dob: "",
+              contact: ''
+          }
+        });
 
     }
 
@@ -105,67 +111,80 @@ const TeamForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const userData = {
-          id: mode === 'add' ? uuidv4() : location.state.id,
-          teamName: formData.teamName,
-          teamDescription: formData.teamDescription,
-          approvedByManager: mode === 'add' ? 0 : location.state.team.approvedByManager,
-          approvedByDirector: mode === 'add' ? 0 : location.state.team.approvedByDirector,
-          members: [
-              {
-                  id: mode === 'add' ? uuidv4() : isMultyEdit ? location.state.team.members[memberIndex.current].id : location.state.team.members[0].id,
-                  memberName: formData.memberName,
-                  gender: formData.gender,
-                  dob: formData.dob,
-                  contact: formData.contact,
-              }
-          ]
-        }
-
         if (mode === 'add') {
 
-        if (memberData.length > 0) {
-            userData.members.push(...memberData)
-        }
+            const userData = {
+                name: formData.name,
+                description: formData.description,
+                members: [
+                    {
+                        name: formData.member.name,
+                        gender: formData.member.gender,
+                        dob: formData.member.dob,
+                        contact: formData.member.contact,
+                    }
+                ]
+            }
 
-        try {
-          await api.post('/teams', userData).then(() => {
-              toast.success('Team created successfully');
-          })
-        } catch(error) {
-            toast.error(`Error - ${error}`);
-        }
+            if (memberData.length > 0) {
+                userData.members.push(...memberData)
+            }
+
+            try {
+              await api.create(userData).then(() => {
+                  toast.success('Team created successfully');
+              })
+            } catch(error) {
+                toast.error(`Error - ${error}`);
+            }
         } else {
 
-        if (isMultyEdit) {
+            const userData = {
+                _id: location.state.team._id,
+                name: formData.name,
+                description: formData.description,
+                approvedByManager: location.state.team.approvedByManager,
+                approvedByDirector: location.state.team.approvedByDirector,
+                members: [
+                    {
+                        _id: isMultyEdit ? location.state.team.members[memberIndex.current]._id : location.state.team.members[0]._id,
+                        name: formData.member.name,
+                        gender: formData.member.gender,
+                        dob: formData.member.dob,
+                        contact: formData.member.contact,
+                    }
+                ]
+            }
 
-            const editedMember = userData.members[0];
-            const updatedMembersArray = copyAllMember.current.map(obj => {
-                if (obj.id === editedMember.id) {
-                    return editedMember;
+            if (isMultyEdit) {
+
+                const editedMember = userData.members[0];
+                const updatedMembersArray = copyAllMember.current.map(obj => {
+                    if (obj._id === editedMember._id) {
+                        return editedMember;
+                    }
+                    return obj;
+                });
+
+                userData.members = updatedMembersArray
+
+                try {
+                    await api.update(location.state.team._id, userData).then(() => {
+                        toast.success('Team updated successfully');
+                    })
+                } catch(error) {
+                    toast.error(`Error - ${error}`);
                 }
-                return obj;
-            });
 
-            userData.members = updatedMembersArray
-
-            try {
-                await api.put(`/teams/${location.state.team.id}`, userData).then(() => {
-                    toast.success('Team updated successfully');
-                })
-            } catch(error) {
-                toast.error(`Error - ${error}`);
+            } else {
+                try {
+                    await api.update(location.state.team._id, userData).then(() => {
+                        toast.success('Team updated successfully');
+                    })
+                } catch(error) {
+                    toast.error(`Error - ${error}`);
+                }
             }
-
-        } else {
-            try {
-                await api.put(`/teams/${location.state.id}`, userData).then(() => {
-                    toast.success('Team updated successfully');
-                })
-            } catch(error) {
-                toast.error(`Error - ${error}`);
-            }
-        }
 
         }
         navigate('/', { replace: true, state: null });
@@ -184,8 +203,8 @@ const TeamForm = () => {
                         <input
                             type="text"
                             className="w-full font-normal p-2 border border-gray-300 rounded mt-2"
-                            value={formData.teamName}
-                            onChange={(e) => setFormData({...formData, teamName: e.target.value})}
+                            value={formData.name}
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
                             placeholder="Team Name"
                             required
                         />
@@ -196,9 +215,9 @@ const TeamForm = () => {
                         Team Description
                         <textarea
                             className="w-full font-normal p-2 border border-gray-300 rounded mt-2"
-                            value={formData.teamDescription}
-                            onChange={(e) => setFormData({...formData, teamDescription: e.target.value})}
-                            name="teamDescription"
+                            value={formData.description}
+                            onChange={(e) => setFormData({...formData, description: e.target.value})}
+                            name="description"
                             placeholder="Team Description"
                             rows={4}
                             cols={40}
@@ -206,82 +225,84 @@ const TeamForm = () => {
                         />
                     </label>
                 </div>
-                <div className="mb-4">
-                  <h3 className="bg-slate-800 text-lg text-white font-bold p-3">Team member</h3>
-                  <table className="table-auto">
-                      <thead className="text-xs text-center text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                          <tr className="border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200">
-                            <th className="px-2 py-3">Name</th>
-                            <th className="px-2 py-3">Gender</th>
-                            <th className="px-2 py-3">Date of Birth</th>
-                            <th className="px-2 py-3">Contact No.</th>
-                          </tr>
-                    </thead>
-                    <tbody>
-                    <tr
-                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
-                    >
-                        <td className="px-2 py-3">
-                            <input
-                                type="text"
-                                className="w-full p-2 border border-gray-300 rounded text-xs"
-                                value={formData.memberName}
-                                onChange={(e) => setFormData({...formData, memberName: e.target.value})}
-                                placeholder="Member Name"
-                                required
-                            />
-                        </td>
-                        <td className="px-2 py-3">
-                            <select
-                                name="gender"
-                                className="w-full p-2 border border-gray-300 rounded text-xs"
-                                value={formData.gender}
-                                onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                                required
+                {!updateTeamOnly && (
+                    <div className="mb-4">
+                        <h3 className="bg-slate-800 text-lg text-white font-bold p-3">Team member</h3>
+                        <table className="table-auto">
+                            <thead className="text-xs text-center text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr className="border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200">
+                                <th className="px-2 py-3">Name</th>
+                                <th className="px-2 py-3">Gender</th>
+                                <th className="px-2 py-3">Date of Birth</th>
+                                <th className="px-2 py-3">Contact No.</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr
+                                className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200"
                             >
-                                <option value="">Select...</option>
-                                {genderOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </td>
-                        <td className="px-2 py-3">
-                            <input
-                                type="date"
-                                id="dateInput"
-                                className="w-full p-2 border border-gray-300 rounded text-xs"
-                                value={formData.dob}
-                                onChange={(e) => setFormData({...formData, dob: e.target.value})}
-                                required
-                            />
-                        </td>
-                        <td className="px-2 py-3">
-                            <input
-                                id="contact"
-                                className="w-full p-2 border border-gray-300 rounded text-xs"
-                                name="age"
-                                type="number"
-                                value={formData.contact}
-                                onChange={(e) => setFormData({...formData, contact: e.target.value})}
-                                required
-                            />
-                        </td>
-                    </tr>
-                    <MemberForm memberData={memberData} onChangeInput={onChangeInput} />
-                    </tbody>
-                  </table>
-                    {mode === 'add' && (
-                        <div className="py-12 px-2">
-                            <button
-                                type="button"
-                                className="rounded-md bg-sky-500/100 px-5 py-2 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
-                                onClick={handleAddMember}
-                            >
-                                Add New Member
-                            </button>
-                        </div>
-                    )}
-                </div>
+                                <td className="px-2 py-3">
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 border border-gray-300 rounded text-xs"
+                                        value={formData.member.name}
+                                        onChange={(e) => setFormData({...formData, member: {...formData.member, name: e.target.value }})}
+                                        placeholder="Member Name"
+                                        required
+                                    />
+                                </td>
+                                <td className="px-2 py-3">
+                                    <select
+                                        name="gender"
+                                        className="w-full p-2 border border-gray-300 rounded text-xs"
+                                        value={formData.member.gender}
+                                        onChange={(e) => setFormData({...formData, member: {...formData.member, gender: e.target.value}})}
+                                        required
+                                    >
+                                        <option value="">Select...</option>
+                                        {genderOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </td>
+                                <td className="px-2 py-3">
+                                    <input
+                                        type="date"
+                                        id="dateInput"
+                                        className="w-full p-2 border border-gray-300 rounded text-xs"
+                                        value={formData.member.dob}
+                                        onChange={(e) => setFormData({...formData, member: {...formData.member, dob: e.target.value}})}
+                                        required
+                                    />
+                                </td>
+                                <td className="px-2 py-3">
+                                    <input
+                                        id="contact"
+                                        className="w-full p-2 border border-gray-300 rounded text-xs"
+                                        name="age"
+                                        type="number"
+                                        value={formData.member.contact}
+                                        onChange={(e) => setFormData({...formData, member: {...formData.member, contact: e.target.value}})}
+                                        required
+                                    />
+                                </td>
+                            </tr>
+                            <MemberForm memberData={memberData} onChangeInput={onChangeInput} />
+                            </tbody>
+                        </table>
+                        {mode === 'add' && (
+                            <div className="py-12 px-2">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-sky-500/100 px-5 py-2 mr-3 text-sm font-semibold text-white opacity-100 focus:outline-none cursor-pointer"
+                                    onClick={handleAddMember}
+                                >
+                                    Add New Member
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="flex justify-center items-center">
                     <button
                         type="submit"

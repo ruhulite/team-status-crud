@@ -32,6 +32,19 @@ To run the project steps to follow
 - cd backend: npx json-server db.json
 - cd frontend: npm run dev
 
+
+## Project Instruction with Express & MongoDB
+- git checkout "express-and-mongoose"
+
+- Frontend Configuration:
+- Add Server URL to frontend .env file [SERVER_URI]
+
+- BackendConfiguration:
+- Add Database URL and PORT to backend .env file [PORT=, MONGODB_URI=]
+
+- cd backend: npm run dev
+- cd frontend: npm run dev
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
