@@ -21,24 +21,12 @@ The React Compiler is not enabled on this template because of its impact on dev 
 - Tailwind
 
 ## For Database
-- json-server
 - MongoDB
 
 ## For Server
 - Express
 
 ## Project Instruction
-
-To run the project steps to follow
-
-- git clone https://github.com/ruhulite/team-status-crud.git
-
-- cd backend: npx json-server db.json
-- cd frontend: npm run dev
-
-
-## Project Instruction with Express & MongoDB
-- git checkout "express-and-mongoose"
 
 - Frontend Configuration:
 - Add Server URL to frontend .env file [SERVER_URI]
